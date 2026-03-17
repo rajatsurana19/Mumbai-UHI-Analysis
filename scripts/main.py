@@ -52,22 +52,20 @@ mtl_path = r"D:/UHI-Mumbai/data/Landsat 8/L8O07JAN2026000000001480047PSANSTUC00G
 shp_path = r"D:/UHI-Mumbai/vector/mumbai_clean.shp"
 scene_name = "L8_2026_Jan7"
 
-# --------------------------------------------------
-# OUTPUT FOLDER
-# --------------------------------------------------
+
 
 out_root = r"D:/UHI-Mumbai/uhi_data"
 os.makedirs(out_root, exist_ok=True)
 
-# --------------------------------------------------
+ 
 # LOAD BOUNDARY
-# --------------------------------------------------
+ 
 
 boundary = gpd.read_file(shp_path)
 
-# --------------------------------------------------
+ 
 # READ FULL BANDS
-# --------------------------------------------------
+ 
 
 with rasterio.open(b4_path) as src:
     red = src.read(1).astype(float)
@@ -86,17 +84,17 @@ red[red == 0] = np.nan
 nir[nir == 0] = np.nan
 thermal[thermal == 0] = np.nan
 
-# --------------------------------------------------
+ 
 # NDVI
-# --------------------------------------------------
+ 
 
 ndvi = (nir - red) / (nir + red)
 mean_ndvi = np.nanmean(ndvi)
 print("Mean NDVI:", mean_ndvi)
 
-# --------------------------------------------------
+ 
 # EMISSIVITY
-# --------------------------------------------------
+ 
 
 ndvi_min = np.nanmin(ndvi)
 ndvi_max = np.nanmax(ndvi)
@@ -104,9 +102,9 @@ ndvi_max = np.nanmax(ndvi)
 pv = ((ndvi - ndvi_min) / (ndvi_max - ndvi_min)) ** 2
 emissivity = 0.004 * pv + 0.986
 
-# --------------------------------------------------
+ 
 # READ MTL FILE
-# --------------------------------------------------
+ 
 
 with open(mtl_path) as f:
     mtl = f.read()
@@ -119,9 +117,9 @@ AL = get_value("RADIANCE_ADD_BAND_10")
 K1 = get_value("K1_CONSTANT_BAND_10")
 K2 = get_value("K2_CONSTANT_BAND_10")
 
-# --------------------------------------------------
+ 
 # LST CALCULATION
-# --------------------------------------------------
+ 
 
 radiance = ML * thermal + AL
 bt = K2 / np.log((K1 / radiance) + 1)
@@ -132,22 +130,22 @@ lst_c = lst - 273.15
 mean_lst = np.nanmean(lst_c)
 print("Mean Scene LST:", mean_lst)
 
-# --------------------------------------------------
+ 
 # CREATE URBAN MASK (Mumbai)
-# --------------------------------------------------
+ 
 
 boundary_proj = boundary.to_crs(crs)
 
 urban_mask = geometry_mask(
     boundary_proj.geometry,
     transform=transform,
-    invert=True,        # True = inside polygon
+    invert=True,        
     out_shape=lst_c.shape
 )
 
-# --------------------------------------------------
+ 
 # URBAN & RURAL LST
-# --------------------------------------------------
+ 
 
 urban_lst = np.where(urban_mask, lst_c, np.nan)
 rural_lst = np.where(~urban_mask, lst_c, np.nan)
@@ -155,9 +153,9 @@ rural_lst = np.where(~urban_mask, lst_c, np.nan)
 urban_mean = np.nanmean(urban_lst)
 rural_mean = np.nanmean(rural_lst)
 
-# --------------------------------------------------
+ 
 # UHI INTENSITY
-# --------------------------------------------------
+ 
 
 uhi_intensity = urban_mean - rural_mean
 
@@ -166,15 +164,15 @@ print("Urban Mean LST:", urban_mean)
 print("Rural Mean LST:", rural_mean)
 print("UHI Intensity (°C):", uhi_intensity)
 
-# --------------------------------------------------
+ 
 # UHI MAP
-# --------------------------------------------------
+ 
 
 uhi_map = lst_c - rural_mean
 
-# --------------------------------------------------
+ 
 # FUNCTION TO SAVE MAPS
-# --------------------------------------------------
+ 
 
 def save_map(data, cmap, title, filename):
     plt.figure(figsize=(8, 6))
@@ -185,9 +183,9 @@ def save_map(data, cmap, title, filename):
     plt.savefig(os.path.join(out_root, filename), dpi=300)
     plt.close()
 
-# --------------------------------------------------
+ 
 # SAVE OUTPUT MAPS
-# --------------------------------------------------
+ 
 
 save_map(ndvi, "RdYlGn", f"NDVI — {scene_name}", f"{scene_name}_NDVI.png")
 save_map(lst_c, "hot", f"LST — {scene_name}", f"{scene_name}_LST.png")
